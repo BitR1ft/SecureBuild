@@ -1,0 +1,83 @@
+# SecureBuild Configuration
+# See docs/configuration.md for full documentation
+
+project:
+  name: ""  # Auto-detected from repo
+  type: open_source  # open_source or commercial
+  language: python  # python, javascript, or both
+
+gates:
+  secrets:
+    enabled: true
+    custom_patterns: []
+    # - name: "Internal API Key"
+    #   pattern: "INTERNAL_[A-Z0-9]{32}"
+    exclude_paths: []
+  sast:
+    enabled: true
+    incremental_scan: false
+    exclude_paths: ["migrations/**", "*/tests/**"]
+  cve:
+    enabled: true
+    check_stale_days: 730
+    check_licenses: true
+    exclude_paths: []
+  license:
+    enabled: true
+    allowed_licenses:
+      - MIT
+      - Apache-2.0
+      - BSD-2-Clause
+      - BSD-3-Clause
+      - ISC
+      - PSF
+    blocked_licenses:
+      - AGPL-3.0
+    exclude_paths: []
+  iac:
+    enabled: true
+    check_docker: true
+    check_compose: true
+    check_k8s: true
+    check_github_actions: true
+    terraform_experimental: false
+    exclude_paths: []
+
+thresholds:
+  # Per-gate threshold overrides. Keys must match GateThreshold field names:
+  # max_critical, max_high, max_medium, max_low (use -1 for no limit)
+  secrets:
+    max_critical: 0
+    max_high: 0     # Secrets gate: zero tolerance
+  sast:
+    max_critical: 0
+    max_high: 5
+  cve:
+    max_critical: 0
+    max_high: 5
+  license:
+    max_critical: 0
+    max_high: 10
+  iac:
+    max_critical: 0
+    max_high: 5
+
+# Pipeline-level blocking behavior
+fail_on_critical: true   # Block pipeline if ANY critical finding is found
+fail_on_high: false      # Set true to block on 5+ high findings
+
+exclude_paths:
+  - "node_modules/**"
+  - "venv/**"
+  - ".git/**"
+  - "*.lock"
+  - "*.min.js"
+  - "*.min.css"
+  - "__pycache__/**"
+  - ".tox/**"
+
+reporting:
+  default_format: html
+  include_charts: true
+  include_code_snippets: true
+  max_findings_per_gate: 100

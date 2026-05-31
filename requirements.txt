@@ -1,0 +1,27 @@
+# Core dependencies
+bandit>=1.7.0
+semgrep>=1.0.0
+detect-secrets>=1.4.0
+requests>=2.31.0
+flask>=3.0.0
+flask-wtf>=1.2.0
+jinja2>=3.1.0
+weasyprint>=59.0
+checkov>=3.0.0
+pip-licenses>=4.0.0
+pytest>=7.0.0
+pytest-cov>=4.0.0
+python-dotenv>=1.0.0
+pyyaml>=6.0
+pydantic>=2.0.0
+
+# Optional dependencies
+aiohttp>=3.9.0
+flask-caching>=2.0.0
+flask-limiter>=3.0.0
+responses>=0.23.0
+pre-commit>=3.0.0
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+mypy>=1.0.0

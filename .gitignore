@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+logs/*.log
+
+# Reports
+reports/
+
+# Test / coverage
+htmlcov/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.secrets.baseline
+
+# OS
+.DS_Store
+
+# Binary / generated documentation (kept out of git)
+*.pdf
+*.pptx
+*.tex
+SecureBuild_Report.tex
+
+# Force-include test fixture secret-like files (they are intentional fake fixtures)
+!tests/fixtures/**/.env
+!tests/fixtures/**/.env.local
+!tests/fixtures/**/deploy_key.pem
