@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureBuild Security Report - {{ repo }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* ── Reset & Base ──────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #1E293B;
+            background: #F8FAFC;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Cover Page ────────────────────────────────────────────── */
+        .cover-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #1E40AF 0%, #1E3A5F 50%, #0F172A 100%);
+            color: #FFFFFF;
+            text-align: center;
+            padding: 40px 20px;
+            page-break-after: always;
+        }
+
+        .cover-logo {
+            width: 80px; height: 80px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 40px;
+        }
+
+        .cover-title {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+
+        .cover-subtitle {
+            font-size: 20px;
+            font-weight: 300;
+            opacity: 0.85;
+            margin-bottom: 48px;
+        }
+
+        .cover-meta {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 32px 48px;
+            display: inline-block;
+            text-align: left;
+            margin-bottom: 48px;
+            backdrop-filter: blur(10px);
+        }
+
+        .cover-meta-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            gap: 40px;
+        }
+
+        .cover-meta-row:last-child { border-bottom: none; }
+
+        .cover-meta-label {
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cover-meta-value {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .cover-score-container {
+            margin-top: 16px;
+        }
+
+        .cover-score {
+            font-size: 96px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -4px;
+        }
+
+        .cover-score-label {
+            font-size: 18px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .grade-badge {
+            display: inline-block;
+            padding: 8px 28px;
+            border-radius: 9999px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Main Content ──────────────────────────────────────────── */
+        .main-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        .section {
+            margin-bottom: 48px;
+            page-break-inside: avoid;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #E2E8F0;
+        }
+
+        .section-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+        /* ── Metric Cards ──────────────────────────────────────────── */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 20px 24px;
+            transition: box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+
+        .metric-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .metric-sub {
+            font-size: 13px;
+            color: #94A3B8;
+            margin-top: 2px;
+        }
+
+        /* ── Executive Summary ─────────────────────────────────────── */
+        .executive-summary {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 24px 28px;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #334155;
+        }
+
+        /* ── Score Breakdown ────────────────────────────────────────── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-row { grid-template-columns: 1fr; }
+        }
+
+        .chart-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0F172A;
+            margin-bottom: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 260px;
+        }
+
+        /* ── Horizontal Bar Chart (CSS) ────────────────────────────── */
+        .bar-chart { list-style: none; }
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .bar-label {
+            width: 120px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .bar-track {
+            flex: 1;
+            height: 24px;
+            background: #F1F5F9;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.6s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #FFFFFF;
+            min-width: 40px;
+        }
+
+        /* ── Trend Indicator ───────────────────────────────────────── */
+        .trend-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 14px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .trend-improving { background: #DCFCE7; color: #166534; }
+        .trend-stable { background: #F1F5F9; color: #475569; }
+        .trend-degrading { background: #FEF3C7; color: #92400E; }
+        .trend-new { background: #DBEAFE; color: #1E40AF; }
+
+        /* ── Gate Details ──────────────────────────────────────────── */
+        .gate-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .gate-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            cursor: pointer;
+            border-bottom: 1px solid #F1F5F9;
+            transition: background 0.15s;
+        }
+
+        .gate-header:hover { background: #F8FAFC; }
+
+        .gate-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .gate-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0F172A;
+        }
+
+        .gate-meta {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        .gate-status-badge {
+            padding: 4px 16px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pass { background: #DCFCE7; color: #166534; }
+        .status-fail { background: #FEE2E2; color: #991B1B; }
+        .status-error { background: #FEF3C7; color: #92400E; }
+
+        .gate-body {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .gate-body.expanded {
+            max-height: 5000px;
+            padding: 16px 24px;
+        }
+
+        .gate-toggle {
+            font-size: 20px;
+            color: #94A3B8;
+            transition: transform 0.2s;
+        }
+
+        .gate-toggle.expanded { transform: rotate(180deg); }
+
+        /* ── Findings Table ────────────────────────────────────────── */
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .findings-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #F8FAFC;
+            color: #475569;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .findings-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #F1F5F9;
+            vertical-align: top;
+        }
+
+        .findings-table tr:hover td { background: #FAFBFC; }
+
+        .finding-row { cursor: pointer; }
+
+        .finding-detail {
+            display: none;
+            background: #F8FAFC;
+            padding: 16px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .finding-detail.visible { display: table-row; }
+
+        .finding-detail td {
+            background: #F8FAFC;
+            border-bottom: none;
+        }
+
+        .remediation-box {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 8px;
+        }
+
+        .remediation-title {
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #1E293B;
+            color: #E2E8F0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 8px 0;
+            white-space: pre-wrap;
+        }
+
+        .cvss-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .file-path {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        /* ── Remediation Priority ──────────────────────────────────── */
+        .quick-wins-section {
+            background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
+            border: 1px solid #86EFAC;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .quick-win-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-win-item {
+            background: #FFFFFF;
+            border: 1px solid #BBF7D0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .priority-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .priority-item:last-child { border-bottom: none; }
+
+        .priority-rank {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: #F1F5F9;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #475569;
+            flex-shrink: 0;
+        }
+
+        .priority-rank.critical-rank { background: #FEE2E2; color: #991B1B; }
+        .priority-rank.high-rank { background: #FFEDD5; color: #9A3412; }
+
+        .priority-info { flex: 1; }
+
+        .priority-message {
+            font-weight: 500;
+            color: #0F172A;
+            margin-bottom: 2px;
+        }
+
+        .priority-meta {
+            font-size: 13px;
+            color: #64748B;
+        }
+
+        .fix-time {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .total-fix-time {
+            background: #FFFFFF;
+            border: 2px solid #1E40AF;
+            border-radius: 12px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 24px;
+        }
+
+        .total-fix-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1E40AF;
+        }
+
+        .total-fix-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #1E40AF;
+        }
+
+        /* ── Appendix ──────────────────────────────────────────────── */
+        .appendix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: #FFFFFF;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #E2E8F0;
+        }
+
+        .appendix-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #F1F5F9;
+            color: #475569;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #E2E8F0;
+            position: sticky;
+            top: 0;
+        }
+
+        .appendix-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .appendix-table tr:hover td { background: #F8FAFC; }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .metadata-item {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .metadata-key {
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metadata-val {
+            font-size: 15px;
+            font-weight: 600;
+            color: #0F172A;
+            margin-top: 2px;
+        }
+
+        /* ── Footer ────────────────────────────────────────────────── */
+        .report-footer {
+            text-align: center;
+            padding: 32px 0;
+            color: #94A3B8;
+            font-size: 13px;
+            border-top: 1px solid #E2E8F0;
+            margin-top: 48px;
+        }
+
+        /* ── Print Styles ──────────────────────────────────────────── */
+        @media print {
+            .cover-page { min-height: auto; padding: 60px 20px; }
+            .gate-body { max-height: none !important; padding: 16px 24px !important; }
+            .main-content { padding: 20px; }
+            .no-print { display: none !important; }
+        }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .cover-title { font-size: 32px; }
+            .cover-score { font-size: 64px; }
+            .cover-meta { padding: 20px 24px; }
+            .cover-meta-row { flex-direction: column; gap: 4px; }
+            .metrics-grid { grid-template-columns: 1fr 1fr; }
+            .charts-row { grid-template-columns: 1fr; }
+            .bar-label { width: 80px; font-size: 12px; }
+            .findings-table { font-size: 12px; }
+            .gate-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+{# ═══════════════════════════════════════════════════════════════════════
+   COVER PAGE
+   ═══════════════════════════════════════════════════════════════════════ #}
+<div class="cover-page">
+    <div class="cover-logo">🛡️</div>
+    <div class="cover-title">SecureBuild</div>
+    <div class="cover-subtitle">CI/CD Security Gate Report</div>
+
+    <div class="cover-meta">
+        <div class="cover-meta-row">
+            <span class="cover-meta-label">Repository</span>
+            <span class="cover-meta-value">{{ repo or 'N/A' }}</span>
+        </div>
+        <div class="cover-meta-row">
+            <span class="cover-meta-label">Branch</span>
+            <span class="cover-meta-value">{{ branch or 'N/A' }}</span>
+        </div>
+        <div class="cover-meta-row">
+            <span class="cover-meta-label">Commit</span>
+            <span class="cover-meta-value">{{ commit_hash[:12] if commit_hash else 'N/A' }}</span>
+        </div>
+        <div class="cover-meta-row">
+            <span class="cover-meta-label">Scan Date</span>
+            <span class="cover-meta-value">{{ scan_timestamp[:19] if scan_timestamp else 'N/A' }}</span>
+        </div>
+        <div class="cover-meta-row">
+            <span class="cover-meta-label">Run ID</span>
+            <span class="cover-meta-value">{{ run_id[:16] if run_id else 'N/A' }}</span>
+        </div>
+    </div>
+
+    <div class="cover-score-container">
+        <div class="cover-score" style="color: {{ grade.color }};">{{ '%.1f'|format(overall_score) }}</div>
+        <div class="cover-score-label">Security Score (0–100)</div>
+        <div class="grade-badge" style="background: {{ grade.color }}; color: #FFFFFF;">
+            {{ grade.label }}
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════════════════════════════════════ #}
+<div class="main-content">
+
+    {# ── Executive Summary ────────────────────────────────────────── #}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: #DBEAFE; color: #1E40AF;">📋</div>
+            <h2 class="section-title">Executive Summary</h2>
+        </div>
+
+        <div class="executive-summary">
+            {{ executive_summary }}
+        </div>
+
+        <div class="metrics-grid" style="margin-top: 20px;">
+            <div class="metric-card">
+                <div class="metric-label">Total Findings</div>
+                <div class="metric-value" style="color: #0F172A;">{{ total_findings }}</div>
+                <div class="metric-sub">across {{ gate_results|length }} gates</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Critical</div>
+                <div class="metric-value" style="color: #DC2626;">{{ severity_counts.critical }}</div>
+                <div class="metric-sub">immediate action required</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">High</div>
+                <div class="metric-value" style="color: #EA580C;">{{ severity_counts.high }}</div>
+                <div class="metric-sub">urgent attention needed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Security Score</div>
+                <div class="metric-value" style="color: {{ grade.color }};">{{ '%.1f'|format(overall_score) }}</div>
+                <div class="metric-sub">{{ grade.label }}</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Score Breakdown ──────────────────────────────────────────── #}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: #FEF3C7; color: #92400E;">📊</div>
+            <h2 class="section-title">Score Breakdown</h2>
+            {% if risk_trend %}
+            <span class="trend-badge trend-{{ risk_trend }}">
+                {% if risk_trend == 'improving' %}↓{% elif risk_trend == 'degrading' %}↑{% elif risk_trend == 'stable' %}→{% else %}●{% endif %}
+                {{ risk_trend.replace('_', ' ').title() }}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="charts-row">
+            {# ── Score by Gate (horizontal bar chart using CSS) ── #}
+            <div class="chart-card">
+                <div class="chart-title">Risk Contribution by Gate</div>
+                <ul class="bar-chart">
+                    {% set max_gate_score = gate_scores.values()|max if gate_scores else 1 %}
+                    {% for gate_name, score in gate_scores.items() %}
+                    {% set pct = (score / max_gate_score * 100)|round if max_gate_score > 0 else 0 %}
+                    <li class="bar-row">
+                        <span class="bar-label">{{ gate_name.title() }}</span>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width: {{ pct }}%; background: {{ chart_gate_colors[loop.index0 % 5] }};">
+                                {{ '%.1f'|format(score) }}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            {# ── Findings by Severity (donut chart using Chart.js) ── #}
+            <div class="chart-card">
+                <div class="chart-title">Findings by Severity</div>
+                <div class="chart-container">
+                    <canvas id="severityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {# ── Additional Charts Row ── #}
+        <div class="charts-row" style="margin-top: 24px;">
+            {# ── Findings by Gate (bar chart using Chart.js) ── #}
+            <div class="chart-card">
+                <div class="chart-title">Findings by Gate</div>
+                <div class="chart-container">
+                    <canvas id="gateChart"></canvas>
+                </div>
+            </div>
+
+            {# ── Score Trend (line chart using Chart.js) ── #}
+            <div class="chart-card">
+                <div class="chart-title">Risk Assessment</div>
+                <div class="chart-container" style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; font-weight: 800; color: {{ grade.color }};">
+                            {{ '%.1f'|format(risk_overall) }}
+                        </div>
+                        <div style="font-size: 14px; color: #64748B; margin-bottom: 16px;">
+                            Risk Score (0–100, lower is better)
+                        </div>
+                        <div style="display: flex; gap: 24px; justify-content: center; font-size: 13px;">
+                            <div>
+                                <span style="color: #64748B;">Level:</span>
+                                <strong style="color: #0F172A;">{{ risk_level.title() }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #64748B;">Trend:</span>
+                                <strong style="color: #0F172A;">{{ risk_trend.replace('_', ' ').title() }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #64748B;">Percentile:</span>
+                                <strong style="color: #0F172A;">{{ '%.1f'|format(risk_percentile) }}%</strong>
+                            </div>
+                        </div>
+                        {% if risk_recommendation %}
+                        <div style="margin-top: 16px; text-align: left; background: #F8FAFC; border-radius: 8px; padding: 12px; font-size: 13px; color: #475569;">
+                            {{ risk_recommendation }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Gate Details ─────────────────────────────────────────────── #}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: #FEE2E2; color: #991B1B;">🔒</div>
+            <h2 class="section-title">Gate Details</h2>
+        </div>
+
+        {% for gr in gate_results %}
+        <div class="gate-card">
+            <div class="gate-header" onclick="toggleGate('gate-{{ loop.index }}')">
+                <div class="gate-header-left">
+                    <span class="gate-name">{{ gr.gate_name.title() }} Gate</span>
+                    <span class="gate-meta">
+                        {{ gr.duration_ms|format_duration }} · {{ gr.files_scanned }} files scanned
+                        {% if gr.findings_count > 0 %} · {{ gr.findings_count }} finding{{ 's' if gr.findings_count != 1 }}{% endif %}
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="gate-status-badge status-{{ gr.status }}">
+                        {{ gr.status.title() }}
+                    </span>
+                    <span class="gate-toggle" id="toggle-gate-{{ loop.index }}">▼</span>
+                </div>
+            </div>
+
+            <div class="gate-body" id="gate-{{ loop.index }}">
+                {% if gr.findings %}
+                <table class="findings-table">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Line</th>
+                            <th>Severity</th>
+                            <th>Message</th>
+                            <th>CVSS</th>
+                            <th>CWE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in gr.findings %}
+                        <tr class="finding-row" onclick="toggleFinding('finding-{{ finding.id[:8] }}')">
+                            <td><span class="file-path">{{ finding.file|truncate_path(40) }}</span></td>
+                            <td>{{ finding.line if finding.line else '—' }}</td>
+                            <td>{{ finding.severity|severity_badge }}</td>
+                            <td>{{ finding.message[:100] }}{% if finding.message|length > 100 %}…{% endif %}</td>
+                            <td>
+                                <span class="cvss-pill" style="color: {{ finding.cvss_score|cvss_color }}; background: {{ finding.cvss_score|cvss_color }}1A;">
+                                    {{ finding.cvss_score|format_cvss }}
+                                </span>
+                            </td>
+                            <td>{{ finding.cwe_id if finding.cwe_id else '—' }}</td>
+                        </tr>
+                        <tr class="finding-detail" id="finding-{{ finding.id[:8] }}">
+                            <td colspan="6">
+                                <div class="remediation-box">
+                                    {% set remediation = remediation_map.get(finding.id, {}) %}
+                                    <div class="remediation-title">
+                                        {{ remediation.get('title', 'Remediation') }}
+                                    </div>
+                                    <p style="color: #475569; margin-bottom: 12px;">
+                                        {{ remediation.get('explanation', finding.fix_suggestion or 'No specific remediation available.') }}
+                                    </p>
+
+                                    {% if remediation.get('fix_code_before') %}
+                                    <div style="margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #DC2626;">❌ Before (Vulnerable):</div>
+                                    <div class="code-block">{{ remediation.fix_code_before }}</div>
+                                    {% endif %}
+
+                                    {% if remediation.get('fix_code_after') %}
+                                    <div style="margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #16A34A;">✅ After (Secure):</div>
+                                    <div class="code-block">{{ remediation.fix_code_after }}</div>
+                                    {% endif %}
+
+                                    <div style="display: flex; gap: 16px; margin-top: 12px; font-size: 13px;">
+                                        <span style="color: #64748B;">
+                                            Effort: <strong>{{ remediation.get('effort', 'N/A').title() }}</strong>
+                                        </span>
+                                        <span style="color: #64748B;">
+                                            Est. Fix Time: <strong>{{ remediation.get('estimated_minutes', '?') }} min</strong>
+                                        </span>
+                                        {% if remediation.get('quick_win') %}
+                                        <span style="color: #16A34A; font-weight: 600;">⚡ Quick Win</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if remediation.get('references') %}
+                                    <div style="margin-top: 8px; font-size: 13px;">
+                                        <span style="color: #64748B;">References:</span>
+                                        {% for ref in remediation.references %}
+                                        <a href="{{ ref }}" style="color: #2563EB; margin-left: 8px;" target="_blank">{{ ref[:50] }}{% if ref|length > 50 %}…{% endif %}</a>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding: 20px; text-align: center; color: #16A34A; font-weight: 500;">
+                    ✅ No findings detected — this gate passed cleanly.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Remediation Priority List ────────────────────────────────── #}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: #DCFCE7; color: #166534;">🔧</div>
+            <h2 class="section-title">Remediation Priority List</h2>
+        </div>
+
+        {# Quick Wins Section #}
+        {% if quick_win_details %}
+        <div class="quick-wins-section">
+            <div class="quick-win-title">⚡ Quick Wins ({{ quick_win_details|length }})</div>
+            {% for qw in quick_win_details %}
+            <div class="quick-win-item">
+                <div>
+                    <span>{{ qw.finding.severity|severity_badge }}</span>
+                    <span style="margin-left: 8px; font-weight: 500; color: #0F172A;">{{ qw.finding.message[:80] }}{% if qw.finding.message|length > 80 %}…{% endif %}</span>
+                </div>
+                <span class="fix-time">{{ qw.fix_time }} min</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Priority Fix List #}
+        {% if priority_fix_list %}
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 24px;">
+            <div style="font-size: 16px; font-weight: 600; color: #0F172A; margin-bottom: 16px;">
+                Priority-Ordered Fix List
+            </div>
+
+            {% for pf in priority_fix_list %}
+            <div class="priority-item">
+                <div class="priority-rank {{ 'critical-rank' if pf.finding.severity == 'critical' else ('high-rank' if pf.finding.severity == 'high' else '') }}">
+                    {{ loop.index }}
+                </div>
+                <div class="priority-info">
+                    <div class="priority-message">
+                        {{ pf.finding.severity|severity_badge }}
+                        {{ pf.finding.message[:100] }}{% if pf.finding.message|length > 100 %}…{% endif %}
+                    </div>
+                    <div class="priority-meta">
+                        <span class="file-path">{{ pf.finding.file|truncate_path(60) }}</span>
+                        {% if pf.finding.cwe_id %}
+                        <span style="margin-left: 8px;">· {{ pf.finding.cwe_id }}</span>
+                        {% endif %}
+                        <span style="margin-left: 8px;">· CVSS {{ pf.finding.cvss_score|format_cvss }}</span>
+                    </div>
+                </div>
+                <span class="fix-time">{{ pf.fix_time }} min</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Total Fix Time #}
+        {% if total_fix_minutes > 0 %}
+        <div class="total-fix-time">
+            <div>
+                <div class="total-fix-label">Total Estimated Fix Time</div>
+                <div style="font-size: 13px; color: #64748B; margin-top: 2px;">
+                    Across {{ total_findings }} finding{{ 's' if total_findings != 1 }}
+                    {% if quick_win_details %} with {{ quick_win_details|length }} quick win{{ 's' if quick_win_details|length != 1 }}{% endif %}
+                </div>
+            </div>
+            <div class="total-fix-value">
+                {% if total_fix_minutes >= 60 %}
+                    {{ total_fix_minutes // 60 }}h {{ total_fix_minutes % 60 }}m
+                {% else %}
+                    {{ total_fix_minutes }}m
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Appendix ─────────────────────────────────────────────────── #}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon" style="background: #F1F5F9; color: #475569;">📑</div>
+            <h2 class="section-title">Appendix</h2>
+        </div>
+
+        {# All Findings Raw Table #}
+        {% if all_findings %}
+        <div style="margin-bottom: 32px;">
+            <div style="font-size: 16px; font-weight: 600; color: #0F172A; margin-bottom: 12px;">
+                All Findings (Raw Table)
+            </div>
+            <div style="max-height: 480px; overflow-y: auto; border-radius: 12px;">
+                <table class="appendix-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Gate</th>
+                            <th>File</th>
+                            <th>Line</th>
+                            <th>Severity</th>
+                            <th>CVSS</th>
+                            <th>CWE</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in all_findings %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ finding.gate.title() }}</td>
+                            <td><span class="file-path">{{ finding.file|truncate_path(45) }}</span></td>
+                            <td>{{ finding.line }}</td>
+                            <td>{{ finding.severity|severity_badge }}</td>
+                            <td>
+                                <span class="cvss-pill" style="color: {{ finding.cvss_score|cvss_color }}; background: {{ finding.cvss_score|cvss_color }}1A;">
+                                    {{ finding.cvss_score|format_cvss }}
+                                </span>
+                            </td>
+                            <td>{{ finding.cwe_id or '—' }}</td>
+                            <td>{{ finding.finding_type.title() }}</td>
+                            <td>{{ finding.message[:80] }}{% if finding.message|length > 80 %}…{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Scan Metadata #}
+        <div style="margin-bottom: 32px;">
+            <div style="font-size: 16px; font-weight: 600; color: #0F172A; margin-bottom: 12px;">
+                Scan Metadata
+            </div>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <div class="metadata-key">Run ID</div>
+                    <div class="metadata-val">{{ run_id or 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Repository</div>
+                    <div class="metadata-val">{{ repo or 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Branch</div>
+                    <div class="metadata-val">{{ branch or 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Commit Hash</div>
+                    <div class="metadata-val">{{ commit_hash[:12] if commit_hash else 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Scan Timestamp</div>
+                    <div class="metadata-val">{{ scan_timestamp[:19] if scan_timestamp else 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Total Duration</div>
+                    <div class="metadata-val">{{ duration_ms|format_duration }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Files Scanned</div>
+                    <div class="metadata-val">{{ total_files_scanned }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Files Skipped</div>
+                    <div class="metadata-val">{{ total_files_skipped }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Gates Run</div>
+                    <div class="metadata-val">{{ gate_results|length }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Overall Status</div>
+                    <div class="metadata-val" style="color: {% if status == 'pass' %}#16A34A{% elif status == 'fail' %}#DC2626{% else %}#CA8A04{% endif %};">
+                        {{ status.title() }}
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Tool Version</div>
+                    <div class="metadata-val">SecureBuild v1.0.0</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-key">Report Generated</div>
+                    <div class="metadata-val">{{ scan_timestamp[:19] if scan_timestamp else 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Footer ───────────────────────────────────────────────────── #}
+    <div class="report-footer">
+        Generated by SecureBuild CI/CD Security Gate v1.0.0 · {{ scan_timestamp[:19] if scan_timestamp else 'N/A' }}
+    </div>
+
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════
+   JAVASCRIPT
+   ═══════════════════════════════════════════════════════════════════════ #}
+<script>
+    // ── Gate toggle ─────────────────────────────────────────────────
+    function toggleGate(gateId) {
+        const body = document.getElementById(gateId);
+        const idx = gateId.split('-')[1];
+        const toggle = document.getElementById('toggle-' + gateId);
+        if (body.classList.contains('expanded')) {
+            body.classList.remove('expanded');
+            toggle.classList.remove('expanded');
+        } else {
+            body.classList.add('expanded');
+            toggle.classList.add('expanded');
+        }
+    }
+
+    // ── Finding detail toggle ───────────────────────────────────────
+    function toggleFinding(findingId) {
+        const row = document.getElementById(findingId);
+        if (row) {
+            row.classList.toggle('visible');
+        }
+    }
+
+    // ── Chart.js: Severity Pie Chart ────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        const severityCtx = document.getElementById('severityChart');
+        if (severityCtx) {
+            new Chart(severityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: {{ chart_severity_labels | tojson }},
+                    datasets: [{
+                        data: {{ chart_severity_data | tojson }},
+                        backgroundColor: {{ chart_severity_colors | tojson }},
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 16,
+                                usePointStyle: true,
+                                pointStyleWidth: 12,
+                                font: { size: 12, family: 'system-ui' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            titleFont: { size: 13 },
+                            bodyFont: { size: 12 },
+                            padding: 12,
+                            cornerRadius: 8,
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── Chart.js: Gate Bar Chart ────────────────────────────────
+        const gateCtx = document.getElementById('gateChart');
+        if (gateCtx) {
+            new Chart(gateCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ chart_gate_labels | tojson }},
+                    datasets: [{
+                        label: 'Findings',
+                        data: {{ chart_gate_data | tojson }},
+                        backgroundColor: {{ chart_gate_colors | tojson }},
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        maxBarThickness: 48,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 11, family: 'system-ui' },
+                                color: '#94A3B8',
+                            },
+                            grid: { color: '#F1F5F9' },
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 11, family: 'system-ui' },
+                                color: '#64748B',
+                            },
+                            grid: { display: false },
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0F172A',
+                            titleFont: { size: 13 },
+                            bodyFont: { size: 12 },
+                            padding: 12,
+                            cornerRadius: 8,
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── Auto-expand gates that have findings ─────────────────────
+        {% for gr in gate_results %}
+        {% if gr.findings %}
+        toggleGate('gate-{{ loop.index }}');
+        {% endif %}
+        {% endfor %}
+    });
+</script>
+
+</body>
+</html>
