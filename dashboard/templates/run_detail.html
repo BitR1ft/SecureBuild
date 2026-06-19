@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Run {{ run.id[:8] }} - SecureBuild{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>
+            <span class="dot dot-{{ run.status }}"></span>
+            Run Detail
+        </h1>
+        <p class="muted run-meta">
+            <a href="/repos/{{ run.repo }}">{{ run.repo.split('/')[-1] if '/' in run.repo else run.repo }}</a>
+            &middot; <code>{{ run.branch }}</code>
+            &middot; {{ run.timestamp[:19]|replace('T', ' ') if run.timestamp else 'N/A' }}
+            {% if run.commit_hash %}&middot; <code>{{ run.commit_hash[:12] }}</code>{% endif %}
+            {% if run.duration_ms > 0 %}
+            &middot;
+            {% if run.duration_ms >= 60000 %}{{ (run.duration_ms / 60000)|round(1) }}m
+            {% elif run.duration_ms >= 1000 %}{{ (run.duration_ms / 1000)|round(1) }}s
+            {% else %}{{ run.duration_ms }}ms{% endif %}
+            {% endif %}
+        </p>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>
+</div>
+
+<div class="detail-grid">
+    <div class="card">
+        <div class="card-body center">
+            <div class="score-gauge">
+                <svg viewBox="0 0 200 120" class="gauge">
+                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#E2E8F0" stroke-width="14" stroke-linecap="round"/>
+                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none"
+                          stroke="{% if run.overall_score >= 80 %}#16A34A{% elif run.overall_score >= 50 %}#D97706{% else %}#DC2626{% endif %}"
+                          stroke-width="14" stroke-linecap="round"
+                          stroke-dasharray="{{ run.overall_score * 2.51 }} 251"/>
+                    <text x="100" y="95" text-anchor="middle" class="gauge-val">{{ "%.0f"|format(run.overall_score) }}</text>
+                    <text x="100" y="112" text-anchor="middle" class="gauge-lbl">/ 100</text>
+                </svg>
+            </div>
+            <span class="status status-{{ run.status }} lg">Gate {{ run.status|capitalize }}</span>
+            <div class="severity-row">
+                {% for sev, count in severity_counts.items() %}
+                {% if count > 0 %}
+                <span class="sev sev-{{ sev }}">{{ count }} {{ sev|capitalize }}</span>
+                {% endif %}
+                {% endfor %}
+                {% if not run.findings %}
+                <span class="sev sev-info">No findings</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h2>Summary</h2></div>
+        <div class="card-body">
+            <div class="stats">
+                <div class="stat"><span>Total Findings</span><span>{{ run.findings|length if run.findings else 0 }}</span></div>
+                <div class="stat"><span>Gates Executed</span><span>{{ run.gate_results|length if run.gate_results else 0 }}</span></div>
+                <div class="stat"><span>Gates Passed</span><span class="text-success">{{ run.gate_results|selectattr('status', 'eq', 'pass')|list|length if run.gate_results else 0 }}</span></div>
+                <div class="stat"><span>Gates Failed</span><span class="text-danger">{{ run.gate_results|rejectattr('status', 'eq', 'pass')|list|length if run.gate_results else 0 }}</span></div>
+                <div class="stat"><span>Critical Findings</span><span class="text-danger">{{ severity_counts.get('critical', 0) }}</span></div>
+                <div class="stat"><span>High Findings</span><span class="text-warning">{{ severity_counts.get('high', 0) }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head"><h2>Gate Results</h2></div>
+    <div class="card-body">
+        {% if run.gate_results %}
+        <div class="accordion">
+            {% for gate in run.gate_results %}
+            <div class="acc-item">
+                <button type="button" class="acc-head" onclick="toggleAccordion(this)" aria-expanded="{% if gate.status != 'pass' %}true{% else %}false{% endif %}">
+                    <span class="dot dot-{{ gate.status }}"></span>
+                    <span class="acc-title">{{ gate.gate_name|replace('_', ' ')|title }}</span>
+                    <span class="status status-{{ gate.status }}">{{ gate.status|capitalize }}</span>
+                    <span class="muted">{{ gate.findings_count }} finding{{ 's' if gate.findings_count != 1 else '' }}</span>
+                    {% if gate.duration_ms > 0 %}
+                    <span class="muted">{% if gate.duration_ms >= 1000 %}{{ (gate.duration_ms / 1000)|round(1) }}s{% else %}{{ gate.duration_ms }}ms{% endif %}</span>
+                    {% endif %}
+                </button>
+                <div class="acc-body {% if gate.status != 'pass' %}open{% endif %}">
+                    <div class="gate-stats muted">
+                        <span>{{ gate.files_scanned if gate.files_scanned else 'N/A' }} scanned</span>
+                        <span>{{ gate.files_skipped if gate.files_skipped else 'N/A' }} skipped</span>
+                        {% if gate.severity %}<span>Highest: <span class="sev sev-{{ gate.severity }}">{{ gate.severity|capitalize }}</span></span>{% endif %}
+                    </div>
+
+                    {% set gate_findings = findings_by_gate.get(gate.gate_name, []) %}
+                    {% if gate_findings %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Severity</th><th>File</th><th>Line</th><th>Message</th><th>CWE</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for finding in gate_findings %}
+                                <tr>
+                                    <td><span class="sev sev-{{ finding.severity }}">{{ finding.severity|capitalize }}</span></td>
+                                    <td><code>{{ finding.file }}</code></td>
+                                    <td>{{ finding.line if finding.line else '&mdash;' }}</td>
+                                    <td>{{ finding.message }}</td>
+                                    <td>
+                                        {% if finding.cwe_id %}
+                                        <a href="https://cwe.mitre.org/data/definitions/{{ finding.cwe_id.replace('CWE-', '') }}.html" target="_blank" rel="noopener">{{ finding.cwe_id }}</a>
+                                        {% else %}&mdash;{% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="muted">No findings for this gate.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">No gate results available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2>All Findings</h2>
+        <span class="muted">{{ run.findings|length if run.findings else 0 }} total</span>
+    </div>
+    <div class="card-body">
+        {% if run.findings %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th><th>Type</th><th>Gate</th><th>File</th>
+                        <th>Line</th><th>Message</th><th>CVSS</th><th>CWE</th><th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for finding in run.findings %}
+                    <tr>
+                        <td><span class="sev sev-{{ finding.severity }}">{{ finding.severity|capitalize }}</span></td>
+                        <td>{{ finding.finding_type }}</td>
+                        <td>{{ finding.gate }}</td>
+                        <td><code>{{ finding.file }}</code></td>
+                        <td>{{ finding.line if finding.line else '&mdash;' }}</td>
+                        <td>{{ finding.message }}</td>
+                        <td>
+                            {% if finding.cvss_score > 0 %}
+                            <span class="cvss cvss-{{ 'critical' if finding.cvss_score >= 9 else 'high' if finding.cvss_score >= 7 else 'medium' if finding.cvss_score >= 4 else 'low' }}">{{ "%.1f"|format(finding.cvss_score) }}</span>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td>
+                            {% if finding.cwe_id %}
+                            <a href="https://cwe.mitre.org/data/definitions/{{ finding.cwe_id.replace('CWE-', '') }}.html" target="_blank" rel="noopener">{{ finding.cwe_id }}</a>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td>{{ finding.confidence }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">
+            <p>No security findings detected.</p>
+            <p class="muted">This run passed all security gates cleanly.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if run.findings %}
+{% set fixable = run.findings|selectattr('fix_suggestion')|list %}
+{% if fixable %}
+<div class="card">
+    <div class="card-head">
+        <h2>Remediation Suggestions</h2>
+        <span class="muted">{{ fixable|length }} fixable</span>
+    </div>
+    <div class="card-body">
+        {% for finding in fixable[:10] %}
+        <div class="rem-item">
+            <div class="rem-head">
+                <span class="sev sev-{{ finding.severity }}">{{ finding.severity|capitalize }}</span>
+                <code>{{ finding.file }}{% if finding.line %}:{{ finding.line }}{% endif %}</code>
+                {% if finding.cwe_id %}<span class="muted">{{ finding.cwe_id }}</span>{% endif %}
+            </div>
+            <div class="rem-msg">{{ finding.message }}</div>
+            <div class="rem-fix">{{ finding.fix_suggestion }}</div>
+            {% if finding.fix_diff %}
+            <details>
+                <summary class="link">View suggested fix</summary>
+                <pre class="diff">{{ finding.fix_diff }}</pre>
+            </details>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% if fixable|length > 10 %}
+        <p class="muted">...and {{ fixable|length - 10 }} more fixable findings.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleAccordion(btn) {
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', !expanded);
+    var body = btn.nextElementSibling;
+    if (body) body.classList.toggle('open');
+}
+</script>
+{% endblock %}

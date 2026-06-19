@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Runs - SecureBuild{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Run History</h1>
+        <p class="muted">{{ total_runs }} total runs recorded</p>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('filters').classList.toggle('hidden')">Filters</button>
+</div>
+
+<form method="get" action="/runs" id="filters" class="card filter-card {% if not (repo_filter or branch_filter or date_from or date_to or status_filter) %}hidden{% endif %}">
+    <div class="filter-grid">
+        <label>
+            <span>Repository</span>
+            <select name="repo">
+                <option value="">All Repos</option>
+                {% for r in all_repos %}
+                <option value="{{ r }}" {% if r == repo_filter %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Branch</span>
+            <select name="branch">
+                <option value="">All Branches</option>
+                {% for b in all_branches %}
+                <option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Date From</span>
+            <input type="date" name="date_from" value="{{ date_from }}">
+        </label>
+        <label>
+            <span>Date To</span>
+            <input type="date" name="date_to" value="{{ date_to }}">
+        </label>
+        <label>
+            <span>Status</span>
+            <select name="status">
+                <option value="">All</option>
+                <option value="pass" {% if status_filter == 'pass' %}selected{% endif %}>Pass</option>
+                <option value="fail" {% if status_filter == 'fail' %}selected{% endif %}>Fail</option>
+                <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Error</option>
+            </select>
+        </label>
+        <label>
+            <span>Min Score</span>
+            <input type="number" name="min_score" min="0" max="100" placeholder="0"
+                   value="{{ min_score if min_score is not none else '' }}">
+        </label>
+    </div>
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">Apply</button>
+        <a href="/runs" class="btn btn-secondary">Reset</a>
+    </div>
+</form>
+
+{% if repo_filter or branch_filter or date_from or date_to or status_filter %}
+<div class="active-filters">
+    <span class="muted">Active:</span>
+    {% if repo_filter %}<span class="chip">{{ repo_filter }}</span>{% endif %}
+    {% if branch_filter %}<span class="chip">{{ branch_filter }}</span>{% endif %}
+    {% if date_from %}<span class="chip">From: {{ date_from }}</span>{% endif %}
+    {% if date_to %}<span class="chip">To: {{ date_to }}</span>{% endif %}
+    {% if status_filter %}<span class="chip">{{ status_filter|capitalize }}</span>{% endif %}
+    <a href="/runs" class="link">Clear</a>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        {% if runs %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Repository</th>
+                        <th>Branch</th>
+                        <th>Date</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Commit</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                    <tr class="clickable" data-href="/runs/{{ run.id }}/report" data-target="_blank">
+                        <td>{{ run.repo.split('/')[-1] if '/' in run.repo else run.repo }}</td>
+                        <td><code>{{ run.branch }}</code></td>
+                        <td class="muted">{{ run.timestamp[:16]|replace('T', ' ') if run.timestamp else 'N/A' }}</td>
+                        <td>
+                            <span class="score score-{{ 'high' if run.overall_score >= 80 else 'medium' if run.overall_score >= 50 else 'low' }}">
+                                {{ "%.0f"|format(run.overall_score) }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status status-{{ run.status }}">{{ run.status|capitalize }}</span>
+                        </td>
+                        <td class="muted">
+                            {% if run.duration_ms > 0 %}
+                                {% if run.duration_ms >= 60000 %}{{ (run.duration_ms / 60000)|round(1) }}m
+                                {% elif run.duration_ms >= 1000 %}{{ (run.duration_ms / 1000)|round(1) }}s
+                                {% else %}{{ run.duration_ms }}ms{% endif %}
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td>
+                            {% if run.commit_hash %}
+                            <code title="{{ run.commit_hash }}">{{ run.commit_hash[:8] }}</code>
+                            {% else %}<span class="muted">&mdash;</span>{% endif %}
+                        </td>
+                        <td><a href="/runs/{{ run.id }}/report" target="_blank" class="btn btn-sm">Report</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">
+            <p>No runs found.</p>
+            <p class="muted">
+                {% if repo_filter or status_filter %}Try adjusting filters or <a href="/runs">reset them</a>.
+                {% else %}Run your first security scan to see results here.{% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    <span class="muted">
+        Showing {{ ((page - 1) * per_page) + 1 }}&ndash;{{ [page * per_page, total_runs]|min }} of {{ total_runs }}
+    </span>
+    <div class="pagination-btns">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}{% if repo_filter %}&repo={{ repo_filter }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if min_score is not none %}&min_score={{ min_score }}{% endif %}" class="btn btn-sm">Prev</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="btn btn-sm btn-primary">{{ p }}</span>
+            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+            <a href="?page={{ p }}{% if repo_filter %}&repo={{ repo_filter }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if min_score is not none %}&min_score={{ min_score }}{% endif %}" class="btn btn-sm">{{ p }}</a>
+            {% elif p == 4 or p == total_pages - 3 %}
+            <span class="muted">&hellip;</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}{% if repo_filter %}&repo={{ repo_filter }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if min_score is not none %}&min_score={{ min_score }}{% endif %}" class="btn btn-sm">Next</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

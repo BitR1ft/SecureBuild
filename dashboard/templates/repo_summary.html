@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}{{ repo_name.split('/')[-1] if '/' in repo_name else repo_name }} - SecureBuild{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ repo_name.split('/')[-1] if '/' in repo_name else repo_name }}</h1>
+        <p class="muted">{{ repo_name }} &middot; {{ runs|length }} recent runs</p>
+    </div>
+    <a href="/runs?repo={{ repo_name }}" class="btn btn-secondary">View All Runs</a>
+</div>
+
+<div class="metric-grid metric-grid-3">
+    <div class="metric">
+        <div class="metric-label">Latest Score</div>
+        <div class="metric-value">{{ "%.0f"|format(latest_score) }}</div>
+        <div class="metric-foot muted">Current run</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Avg Score (30d)</div>
+        <div class="metric-value">{{ "%.1f"|format(avg_score) }}</div>
+        <div class="metric-foot muted">Last 30 days</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Total Findings</div>
+        <div class="metric-value">{{ total_findings }}</div>
+        <div class="metric-foot muted">Recent runs</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="card">
+        <div class="card-head">
+            <h2>Score Trend</h2>
+            <span class="muted">Last {{ runs|length }} runs</span>
+        </div>
+        <div class="card-body">
+            {% if runs %}
+            <canvas id="scoreTrendChart" height="280"></canvas>
+            {% else %}
+            <p class="muted">No run data available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h2>Gate Pass Rate</h2>
+            <span class="muted">Recent runs</span>
+        </div>
+        <div class="card-body">
+            {% if gate_pass_rates %}
+            <canvas id="gatePassChart" height="280"></canvas>
+            {% else %}
+            <p class="muted">No gate data available.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="card">
+        <div class="card-head"><h2>Finding Types</h2></div>
+        <div class="card-body">
+            {% if finding_types %}
+            <div class="breakdown">
+                {% for ft in finding_types %}
+                <div class="bd-row">
+                    <span class="bd-label">{{ ft.finding_type|replace('_', ' ')|title }}</span>
+                    <div class="bd-bar-wrap"><div class="bd-bar" style="width: {{ (ft.count / total_findings * 100)|round }}%"></div></div>
+                    <span class="bd-count">{{ ft.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="muted">No findings to categorize.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h2>Severity Breakdown</h2></div>
+        <div class="card-body">
+            {% if severity_breakdown %}
+            <div class="breakdown">
+                {% for sb in severity_breakdown %}
+                <div class="bd-row">
+                    <span class="bd-label">{{ sb.severity|capitalize }}</span>
+                    <div class="bd-bar-wrap"><div class="bd-bar sev-bar-{{ sb.severity }}" style="width: {{ (sb.count / total_findings * 100)|round }}%"></div></div>
+                    <span class="bd-count">{{ sb.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="muted">No severity data.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2>Top Vulnerable Files</h2>
+        <span class="muted">Most findings per file</span>
+    </div>
+    <div class="card-body">
+        {% if vulnerable_files %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>File</th><th>Findings</th><th>Max CVSS</th><th>Severities</th></tr>
+                </thead>
+                <tbody>
+                    {% for vf in vulnerable_files %}
+                    <tr>
+                        <td><code>{{ vf.file }}</code></td>
+                        <td>{{ vf.finding_count }}</td>
+                        <td>
+                            {% if vf.max_cvss > 0 %}
+                            <span class="cvss cvss-{{ 'critical' if vf.max_cvss >= 9 else 'high' if vf.max_cvss >= 7 else 'medium' if vf.max_cvss >= 4 else 'low' }}">{{ "%.1f"|format(vf.max_cvss) }}</span>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td>
+                            {% for sev in vf.severities.split(',') %}
+                            <span class="sev sev-{{ sev.strip() }}">{{ sev.strip()|capitalize }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">No vulnerable files detected.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head"><h2>Recent Runs</h2></div>
+    <div class="card-body">
+        {% if runs %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Branch</th><th>Score</th><th>Status</th><th>Duration</th></tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                    <tr class="clickable" data-href="/runs/{{ run.id }}">
+                        <td>{{ run.timestamp[:16]|replace('T', ' ') }}</td>
+                        <td><code>{{ run.branch }}</code></td>
+                        <td>
+                            <span class="score score-{{ 'high' if run.overall_score >= 80 else 'medium' if run.overall_score >= 50 else 'low' }}">
+                                {{ "%.0f"|format(run.overall_score) }}
+                            </span>
+                        </td>
+                        <td><span class="status status-{{ run.status }}">{{ run.status|capitalize }}</span></td>
+                        <td class="muted">
+                            {% if run.duration_ms > 0 %}
+                                {% if run.duration_ms >= 60000 %}{{ (run.duration_ms / 60000)|round(1) }}m
+                                {% elif run.duration_ms >= 1000 %}{{ (run.duration_ms / 1000)|round(1) }}s
+                                {% else %}{{ run.duration_ms }}ms{% endif %}
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">No runs available.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    {% if runs %}
+    var trendCtx = document.getElementById('scoreTrendChart');
+    if (trendCtx) {
+        var labels = [{% for r in runs|reverse %}'{{ r.timestamp[:10] if r.timestamp else "N/A" }}'{% if not loop.last %},{% endif %}{% endfor %}];
+        var scores = [{% for r in runs|reverse %}{{ r.overall_score }}{% if not loop.last %},{% endif %}{% endfor %}];
+        var pointColors = scores.map(function (s) { return s >= 80 ? '#16A34A' : s >= 50 ? '#D97706' : '#DC2626'; });
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Score',
+                    data: scores,
+                    borderColor: '#1E40AF',
+                    backgroundColor: 'rgba(30, 64, 175, 0.08)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 4,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { min: 0, max: 100, grid: { color: '#F1F5F9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    {% if gate_pass_rates %}
+    var gateCtx = document.getElementById('gatePassChart');
+    if (gateCtx) {
+        var gateLabels = [{% for name, data in gate_pass_rates.items() %}'{{ name|replace("_", " ")|title }}'{% if not loop.last %},{% endif %}{% endfor %}];
+        var passRates = [{% for name, data in gate_pass_rates.items() %}{{ (data.pass / data.total * 100)|round(1) if data.total > 0 else 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+        var gateColors = passRates.map(function (r) { return r >= 90 ? '#16A34A' : r >= 70 ? '#D97706' : '#DC2626'; });
+
+        new Chart(gateCtx, {
+            type: 'doughnut',
+            data: {
+                labels: gateLabels,
+                datasets: [{ data: passRates, backgroundColor: gateColors, borderWidth: 2, borderColor: '#fff' }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '55%',
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

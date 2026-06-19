@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SecureBuild{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a href="/" class="brand">
+                <span class="brand-mark">SB</span>
+                <span class="brand-name">SecureBuild</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+                <a href="/runs" class="nav-link {% if '/runs' in request.path %}active{% endif %}">Runs</a>
+            </nav>
+            <div class="topbar-actions">
+                <form method="get" action="/runs" class="search-form" role="search">
+                    <input type="text" name="repo" placeholder="Search repository..."
+                           value="{{ request.args.get('repo', '') }}" aria-label="Search repository">
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <span>SecureBuild CI/CD Security Gate</span>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
