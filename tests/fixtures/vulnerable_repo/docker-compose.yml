@@ -1,0 +1,13 @@
+version: '3'
+services:
+  web:
+    build: .
+    privileged: true
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DB_PASSWORD=admin123
+      - SECRET_KEY=hardcoded_key
+      - password=admin123
+      - secret=hardcoded_secret_value

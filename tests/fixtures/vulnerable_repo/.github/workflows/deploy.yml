@@ -1,0 +1,13 @@
+name: Deploy
+on:
+  pull_request_target:
+    types: [opened]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - name: Deploy
+        env:
+          AWS_SECRET_KEY: hardCodedAwsSecret123!
+        run: ./deploy.sh
