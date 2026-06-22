@@ -1,0 +1,53 @@
+name: SecureBuild Security Scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          pytest tests/ -v --tb=short --cov=engine --cov=gates --cov=scoring --cov-report=term-missing
+
+      - name: Run SecureBuild Scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python cli.py scan . --format all --output-dir ./reports
+
+      - name: Upload Report Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: securebuild-report
+          path: reports/
+
+      - name: Post Job Summary
+        if: always()
+        run: |
+          if [ -f reports/summary.md ]; then
+            cat reports/summary.md >> $GITHUB_STEP_SUMMARY
+          fi
