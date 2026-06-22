@@ -1,6 +1,6 @@
 # SecureBuild
 
-By: Muhammad Adeel Haider (BitR1ft)
+By: Muhammad Adeel Haider (BitR1ft)  
 Air University · National Centre for Cyber Security (NCSA)
 
 SecureBuild is a CI/CD security gate framework that evaluates source code, dependencies, infrastructure definitions, and licensing requirements before deployment.
